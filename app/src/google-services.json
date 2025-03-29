@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "681844567576",
+    "firebase_url": "https://projet-smart-home-l3-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "projet-smart-home-l3",
+    "storage_bucket": "projet-smart-home-l3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:681844567576:android:4f62afcd1c482142de9d6d",
+        "android_client_info": {
+          "package_name": "com.example.smarthome"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBoP8MwuKtnUfcIip4czuYs0LxVpfKTpFg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
