@@ -1,6 +1,7 @@
 package com.example.smarthome
 
 import android.os.Bundle
+import androidx.compose.foundation.layout.Box
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.padding
@@ -9,7 +10,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
-//import androidx.compose.ui.unit.dp
 import com.example.smarthome.ui.theme.SmartHomeTheme
 
 class MainActivity : ComponentActivity() {
@@ -61,13 +61,13 @@ fun BottomNavigationBar(selectedScreen: Screen, onScreenSelected: (Screen) -> Un
             onClick = { onScreenSelected(Screen.Stats) }
         )
         NavigationBarItem(
-            icon = { Icon(ImageVector.vectorResource(id = R.drawable.ic_settings), contentDescription = "Settings") },
+            icon = { Icon(ImageVector.vectorResource(id = R.drawable.ic_settings_24dp), contentDescription = "Settings") },
             label = { Text("Settings") },
             selected = selectedScreen == Screen.Settings,
             onClick = { onScreenSelected(Screen.Settings) }
         )
         NavigationBarItem(
-            icon = { Icon(ImageVector.vectorResource(id = R.drawable.ic_notifications), contentDescription = "Notifications") },
+            icon = { Icon(ImageVector.vectorResource(id = R.drawable.ic_notification), contentDescription = "Notifications") },
             label = { Text("Notifications") },
             selected = selectedScreen == Screen.Notifications,
             onClick = { onScreenSelected(Screen.Notifications) }

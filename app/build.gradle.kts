@@ -2,7 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.google.gms.google.services) // Add this line
+    alias(libs.plugins.google.gms.google.services)
 }
 
 android {
@@ -50,17 +50,23 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation("com.google.firebase:firebase-database")
 
-    implementation("androidx.compose.material:material-icons-extended:1.7.8")
+    implementation("androidx.compose.material:material-icons-extended:<version>")
 
     implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
-    implementation("androidx.compose.material:material-icons-extended:1.7.8")
 
     // Firebase Dependencies
-    implementation(platform("com.google.firebase:firebase-bom:33.11.0"))  // Firebase BoM
-    implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.firebaseui:firebase-ui-auth:8.0.2")  // Firebase Auth UI
     implementation("com.google.firebase:firebase-database-ktx")
-    implementation("com.firebaseui:firebase-ui-auth:9.0.0")  // Firebase Auth UI
+    implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
+
+    implementation(platform("com.google.firebase:firebase-bom:32.7.2"))  // Firebase BoM
+    implementation("com.google.firebase:firebase-auth")  // Firebase Authentication
+    implementation("com.google.firebase:firebase-firestore")  // Firestore Database
+    implementation("com.google.firebase:firebase-storage")  // Firebase Storage (for profile pictures)
 
     // Google Sign-In
     implementation(libs.googleid)
@@ -74,6 +80,3 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 }
-
-// Apply the Google services plugin
-apply(plugin = "com.google.gms.google-services")
