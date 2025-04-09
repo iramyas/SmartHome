@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.gms.google.services)
+    alias(libs.plugins.google.firebase.crashlytics)
 }
 
 android {
@@ -79,8 +80,12 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore")  // Firestore Database
     implementation("com.google.firebase:firebase-storage")  // Firebase Storage (for profile pictures)
 
+    implementation("com.google.firebase:firebase-auth-ktx:22.3.1")
+    implementation("com.google.firebase:firebase-firestore:24.10.2")
+    implementation("com.google.firebase:firebase-common:21.0.0")
     // Google Sign-In
     implementation(libs.googleid)
+    implementation(libs.firebase.crashlytics)
 
     // Testing Dependencies
     testImplementation(libs.junit)
