@@ -1,4 +1,4 @@
-package com.example.smarthome
+/*package com.example.smarthome
 
 import android.content.Context
 import android.content.Intent
@@ -124,3 +124,4 @@ fun WelcomeScreenPreviewDark() {
         WelcomeScreen {}
     }
 }
+*/
