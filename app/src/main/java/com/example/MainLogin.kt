@@ -1,4 +1,3 @@
-
 package com.example.smarthome
 
 import android.content.Context
@@ -9,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+//import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -19,15 +19,18 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+//import androidx.compose.ui.graphics.Color // Keep this specific import if needed, else remove
 import androidx.compose.ui.layout.ContentScale
+//import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource // Use this for drawable resources
+//import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.smarthome.MainActivity
 import com.example.smarthome.ui.theme.SmartHomeTheme
 import com.example.smarthome.ui.theme.ThemeOption // Import the enum
 import com.google.firebase.auth.FirebaseAuth
