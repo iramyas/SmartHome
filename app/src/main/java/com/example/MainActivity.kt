@@ -46,7 +46,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         auth = FirebaseAuth.getInstance()
-
+/*
         if (auth.currentUser == null) {
             startActivity(Intent(this, LoginActivity::class.java))
             finish()
@@ -57,7 +57,7 @@ class MainActivity : ComponentActivity() {
             SmartHomeTheme(selectedTheme = ThemeOption.Light) {
                 MainAppScaffold(auth)
             }
-        }
+        }*/
     }
 }
 
