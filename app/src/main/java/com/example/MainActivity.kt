@@ -183,7 +183,7 @@ fun MainAppScaffold(auth: FirebaseAuth) {
                 route = "${AppDestinations.ROOM_DETAIL}/{${AppDestinations.ROOM_NAME_ARG}}",
                 arguments = listOf(navArgument(AppDestinations.ROOM_NAME_ARG) { type = NavType.StringType })
             ) { backStackEntry ->
-                val roomName = backStackEntry.arguments?.getString(AppDestinations.ROOM_NAME_ARG)
+                val roomName = backStackEntry?.arguments?.getString(AppDestinations.ROOM_NAME_ARG)
                 RoomDetailScreen(
                     navController = navController,
                     roomName = roomName ?: "Unknown Room"
@@ -362,7 +362,7 @@ fun RoomDetailScreen(
                             // TODO: Send temperature update to your backend/device
                         },
                         valueRange = 10f..40f,
-                        steps = 29 // (40-10) / 1 = 30 steps, means 29
+                        steps = 29 // (40-10) / 1 = 20 steps, means 19
                     )
                 }
             }
@@ -483,7 +483,7 @@ fun RoomSelector(
                     .height(45.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .clickable { // Handle clicks on the room item
-                        selectedRoom = room
+                        // selectedRoom = room
                         onRoomSelected(room)
                     },
                 shape = RoundedCornerShape(12.dp),
