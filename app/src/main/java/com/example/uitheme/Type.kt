@@ -12,9 +12,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-
+// Define the different Theme options
 
 import androidx.compose.material3.Typography
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -155,7 +156,7 @@ private val DarkColorScheme = darkColorScheme(
     scrim = DarkScrim,
 )
 
-private val PinkColorScheme = lightColorScheme( // Pink theme based on light scheme for now
+private val PinkColorScheme = lightColorScheme(
     primary = PinkPrimary,
     onPrimary = PinkOnPrimary,
     primaryContainer = PinkPrimaryContainer,
@@ -186,12 +187,58 @@ private val PinkColorScheme = lightColorScheme( // Pink theme based on light sch
     outlineVariant = PinkOutlineVariant,
     scrim = PinkScrim,
 )
+private val MyLightColorScheme = lightColorScheme(
+    primary = BabyPink, // Main interactive elements
+    onPrimary = NearBlack, // Text/icons on primary
+    primaryContainer = GrayishPink, // Less prominent containers
+    onPrimaryContainer = NearBlack, // Text/icons on primaryContainer
 
+    secondary = GrayishPink, // Secondary accents (optional)
+    onSecondary = NearBlack,
+    secondaryContainer = LightGray,
+    onSecondaryContainer = NearBlack,
+
+    tertiary = DarkPinkBrown, // Tertiary accents (optional)
+    onTertiary = Color.White,
+    tertiaryContainer = BabyPink,
+    onTertiaryContainer = NearBlack,
+
+    error = Color(0xFFB3261E), // Standard error colors
+    onError = Color.White,
+    errorContainer = Color(0xFFF9DEDC),
+    onErrorContainer = Color(0xFF410E0B),
+
+    background = LightGray, // App background
+    onBackground = NearBlack, // Text/icons on background
+
+    surface = LightGray, // Surface of components like Cards, Sheets
+    onSurface = NearBlack, // Text/icons on surface
+
+    surfaceVariant = GrayishPink, // Variant surface color (e.g., TextField background, Switch track)
+    onSurfaceVariant = DarkPinkBrown, // Text/icons on surfaceVariant
+
+    outline = DarkPinkBrown, // Outlines (like OutlinedButton border, Divider)
+    outlineVariant = GrayishPink, // Subtle outlines/dividers
+
+    // Inverse colors, scrim, etc. (can often keep defaults)
+    inverseSurface = NearBlack,
+    inverseOnSurface = LightGray,
+    inversePrimary = BabyPink,
+    surfaceTint = BabyPink, // Color layered on surfaces due to elevation
+    scrim = Color.Black, // Overlay color
+)
+
+// --- You can define a DarkColorScheme similarly if needed ---
+/*
+private val MyDarkColorScheme = darkColorScheme(
+    // ... define dark theme colors ...
+)
+*/
+
+// Keep the rest of the Theme.kt, but make sure it uses your scheme
 @Composable
 fun SmartHomeTheme(
-    // Allow choosing the theme, default to Light for now
     selectedTheme: ThemeOption = ThemeOption.Light,
-    // Dynamic color is available on Android 12+ but we'll disable for explicit themes
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
@@ -205,16 +252,16 @@ fun SmartHomeTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.background.toArgb() // Match status bar to background
+            window.statusBarColor = colorScheme.background.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars =
-                selectedTheme != ThemeOption.Dark // Light status bar icons for light/pink themes
+                selectedTheme != ThemeOption.Dark
         }
     }
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography, // Assuming you have Typography.kt defined
-        shapes = Shapes, // Assuming you have Shapes.kt defined
+        typography = Typography,
+        shapes = Shapes,
         content = content
     )
 }
