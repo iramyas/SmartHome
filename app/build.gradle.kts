@@ -75,7 +75,7 @@ dependencies {
     implementation("androidx.compose.ui:ui:1.4.3")
     // Firebase Dependencies
 
-   
+    // UPDATE THE VERSION HERE:
     implementation(platform("com.google.firebase:firebase-bom:33.1.1"))
     implementation("com.google.firebase:firebase-crashlytics-ktx")
     implementation ("com.google.firebase:firebase-analytics-ktx")
@@ -91,12 +91,23 @@ dependencies {
     implementation("com.firebaseui:firebase-ui-auth:8.0.2")
 //    implementation("com.google.firebase:firebase-firestore:24.10.2") {
 //        exclude(group = "com.google.firebase", module = "firebase-common")
-//    } 
+//    } // Consider using ktx version
+
+    implementation("androidx.compose.foundation:foundation:1.7.0-beta01") // Make sure you have a recent foundation version
+    implementation("androidx.compose.foundation:foundation-layout:1.7.0-beta01") // And layout
+    implementation("androidx.compose.material3:material3:1.3.0-beta01") // And material3
+
     //implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-database-ktx")
     implementation("androidx.navigation:navigation-compose:2.7.7") // Use the latest version
     implementation("androidx.compose.material:material-icons-extended")
-
+//    implementation("com.firebaseui:firebase-ui-auth:8.0.2")  Keep this if you are using Firebase UI
+    //implementation("com.google.firebase:firebase-database-ktx") // Keep this if you need Realtime Database
+//    implementation("com.google.firebase:firebase-common:24.0.0") {
+//        version {
+//            strictly("24.0.0")
+//        }
+//    }
     // Google Sign-In
     implementation(libs.googleid)
     implementation(libs.firebase.crashlytics)
