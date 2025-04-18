@@ -1,44 +1,48 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.example.smarthome
 
 import android.annotation.SuppressLint
-// import android.content.Intent
-import androidx.navigation.NavGraph.Companion.findStartDestination
+// import android.content.Intent // Not used
+import androidx.navigation.NavGraph.Companion.findStartDestination // Needed for bottom nav logic
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler // Import BackHandler
 import androidx.activity.compose.setContent
-import androidx.compose.animation.AnimatedContent // Import AnimatedContent
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith // Use togetherWith infix function
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.ExperimentalFoundationApi // Needed for Pager
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.pager.HorizontalPager // Import Pager
-import androidx.compose.foundation.pager.PagerState      // Import PagerState
-import androidx.compose.foundation.pager.rememberPagerState // Import rememberPagerState
+import androidx.compose.foundation.pager.HorizontalPager
+
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-// import androidx.compose.material.icons.automirrored.filled.ArrowBack // Not needed now
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material3.*
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color // Keep for specific cases if needed, but prefer theme colors
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -48,7 +52,7 @@ import com.example.smarthome.ui.theme.ThemeOption
 import com.google.firebase.auth.FirebaseAuth
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
-import kotlinx.coroutines.launch // For launching coroutines
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -59,15 +63,14 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         auth = FirebaseAuth.getInstance()
         setContent {
-            // Using Light theme as requested, ensure your ThemeOption enum/logic exists
-            SmartHomeTheme(selectedTheme = ThemeOption.Light) {
+            SmartHomeTheme(selectedTheme = ThemeOption.Dark) {
                 MainAppScaffold(auth)
             }
         }
     }
 }
 
-// --- AppBottomNavigationBar (Keep as is or refine theme colors if needed) ---
+// --- AppBottomNavigationBar (With Navigation Logic) ---
 @Composable
 fun AppBottomNavigationBar(
     currentRoute: String,
@@ -78,43 +81,62 @@ fun AppBottomNavigationBar(
         modifier = Modifier
             .height(80.dp)
             .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)),
-        // Use theme colors
-        containerColor = MaterialTheme.colorScheme.surface, // Or surfaceContainer for elevation effect
+        containerColor = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface,
         actions = {
             NavigationBarItem(
                 selected = currentRoute == AppDestinations.HOME,
-                onClick = { /* ... navigation logic ... */ },
+                onClick = {
+                    // Navigate to Home, ensuring single top and restoring state
+                    navController.navigate(AppDestinations.HOME) {
+                        // Pop up to the start destination of the graph to avoid building up a large back stack
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true // Save state of the popped destinations
+                        }
+                        // Avoid multiple copies of the same destination when reselecting the same item
+                        launchSingleTop = true
+                        // Restore state when reselecting a previously selected item
+                        restoreState = true
+                    }
+                },
                 icon = { Icon(Icons.Outlined.Home, contentDescription = "Home") },
                 label = { Text("Home") },
                 alwaysShowLabel = false,
-                // Customize colors for better blend if needed
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = MaterialTheme.colorScheme.primary,
                     unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f) // Subtle indicator
+                    indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
                 )
             )
             NavigationBarItem(
                 selected = currentRoute == AppDestinations.STATS,
-                onClick = { /* ... navigation logic ... */ },
+                onClick = {
+                    // Navigate to Stats, ensuring single top and restoring state
+                    navController.navigate(AppDestinations.STATS) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
                 icon = { Icon(Icons.Outlined.BarChart, contentDescription = "Statistics") },
                 label = { Text("Stats") },
                 alwaysShowLabel = false,
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = MaterialTheme.colorScheme.primary,
                     unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f) // Subtle indicator
+                    indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
                 )
             )
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = onAddClick,
+                onClick = onAddClick, // Navigate to Add Device screen
                 shape = CircleShape,
-                containerColor = MaterialTheme.colorScheme.primary, // Keep primary for FAB action
+                containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
-                elevation = FloatingActionButtonDefaults.elevation(4.dp, 4.dp, 4.dp, 4.dp) // Slightly more elevation
+                elevation = FloatingActionButtonDefaults.elevation(4.dp, 4.dp, 4.dp, 4.dp)
             ) {
                 Icon(Icons.Rounded.Add, contentDescription = "Add")
             }
@@ -122,14 +144,15 @@ fun AppBottomNavigationBar(
     )
 }
 
-// --- AppDestinations (No Room Detail) ---
+// --- AppDestinations (Keep as is) ---
 object AppDestinations {
     const val HOME = "home"
     const val STATS = "stats"
     const val ADD_DEVICE = "add_device"
+    // No Room Detail destination needed if handled within HomeScreen state
 }
 
-// --- MainAppScaffold (Remove Room Detail Nav) ---
+// --- MainAppScaffold (Keep mostly as is) ---
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun MainAppScaffold(auth: FirebaseAuth) {
@@ -137,146 +160,156 @@ fun MainAppScaffold(auth: FirebaseAuth) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
+    // Determine if the bottom bar should be shown based on the current route
     val showBottomBar = currentRoute in listOf(
         AppDestinations.HOME,
-        AppDestinations.STATS,
-        AppDestinations.ADD_DEVICE
+        AppDestinations.STATS
+        // AddDeviceScreen might cover the bottom bar, or you might want it visible
+        // Let's assume AddDeviceScreen is full-screen and doesn't need the bottom bar.
+        // If you want the bottom bar on AddDeviceScreen, add it back to this list.
     )
 
     Scaffold(
         bottomBar = {
+            // Only show the bottom bar on specified screens
             if (showBottomBar) {
                 AppBottomNavigationBar(
                     currentRoute = currentRoute ?: AppDestinations.HOME,
                     navController = navController,
-                    onAddClick = { navController.navigate(AppDestinations.ADD_DEVICE) }
+                    onAddClick = {
+                        // Navigate to Add Device, simple navigation as it's likely a separate flow
+                        navController.navigate(AppDestinations.ADD_DEVICE) {
+                            // Optionally add launchSingleTop = true if you don't want multiple add device screens
+                            launchSingleTop = true
+                        }
+                    }
                 )
             }
         },
-        containerColor = MaterialTheme.colorScheme.background // Base background
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         NavHost(
             navController = navController,
             startDestination = AppDestinations.HOME,
-            modifier = Modifier.padding(paddingValues) // Apply padding from Scaffold
+            // Apply padding ONLY if the bottom bar is shown, otherwise use no padding
+            modifier = Modifier.padding(if (showBottomBar) paddingValues else PaddingValues(0.dp))
         ) {
             composable(AppDestinations.HOME) {
-                HomeScreen(auth = auth) // Pass auth, no navigation callback needed
+                // Pass navController to HomeScreen ONLY IF it needs to navigate elsewhere
+                // In this case, it doesn't directly navigate, but manages internal state.
+                HomeScreen(auth = auth)
             }
-            composable(AppDestinations.STATS) { StatsUsageScreen() }
-            composable(AppDestinations.ADD_DEVICE) { AddDeviceScreen() }
-            // No RoomDetailScreen composable needed here
+            composable(AppDestinations.STATS) {
+                StatsUsageScreen() // Make sure this composable exists
+            }
+            composable(AppDestinations.ADD_DEVICE) {
+                // Pass navController to allow AddDeviceScreen to navigate back or confirm
+                AddDeviceScreen(navController = navController) // Make sure this composable exists
+            }
         }
     }
 }
 
-// --- HomeScreen Modifications ---
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class) // Needed for Pager & AnimatedContent
+// --- HomeScreen Modifications (Add BackHandler) ---
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(auth: FirebaseAuth) {
     val currentDate = remember {
-        // More welcoming date format
         SimpleDateFormat("EEEE, MMMM d", Locale.getDefault()).format(Date())
     }
-    val userName = auth.currentUser?.displayName?.substringBefore(" ") ?: "User" // Get first name if available
+    val userName = auth.currentUser?.displayName?.substringBefore(" ") ?: "Iram"
 
     val rooms = remember { listOf("Living Room", "Bedroom", "Kitchen", "Bathroom", "Office", "Garage") }
     val globalTemperature = "18°C"
     val globalHumidity = "65%"
 
-    // State to track the *selected* room. Null means no room is selected.
     var selectedRoomName by remember { mutableStateOf<String?>(null) }
     val pagerState = rememberPagerState { rooms.size }
     val coroutineScope = rememberCoroutineScope()
 
-    // --- Synchronization Effects for Pager and Selection ---
-    // --- Synchronization Effects for Pager and Selection ---
+    // --- Back Handler ---
+    // This will intercept the system back button press ONLY when a room is selected.
+    // It sets the selected room back to null, showing the default home content,
+    // instead of popping the entire HomeScreen from the navigation stack.
+    BackHandler(enabled = selectedRoomName != null) {
+        selectedRoomName = null // Go back to the default view
+    }
 
-    // Effect 1: Syncs Selection -> Pager Scroll (Keep as is)
+
+    // --- Synchronization Effects
     LaunchedEffect(selectedRoomName) {
         selectedRoomName?.let { room ->
             val index = rooms.indexOf(room)
             if (index != -1 && index != pagerState.currentPage) {
-                pagerState.animateScrollToPage(index)
+                // Animate scroll smoothly
+                coroutineScope.launch {
+                    pagerState.animateScrollToPage(index)
+                }
             }
         }
-        // If selectedRoomName becomes null (deselected), you might want to scroll pager to 0
-        // but since it will be hidden, it might not matter visually.
-        // else if (pagerState.currentPage != 0) {
-        //     pagerState.animateScrollToPage(0) // Optional reset
-        // }
     }
 
-    // Effect 2: Syncs Pager Swipe -> Selection (Modify this one)
-    // Add selectedRoomName as a key AND check if it's non-null inside
     LaunchedEffect(pagerState.currentPage, pagerState.isScrollInProgress, selectedRoomName) {
-        // *** Only run the update logic IF a room is already selected ***
-        // This prevents the initial load (where selectedRoomName is null) from
-        // immediately setting selectedRoomName based on the default pager page (0).
         if (selectedRoomName != null && !pagerState.isScrollInProgress) {
             val currentPagerRoom = rooms.getOrNull(pagerState.currentPage)
-            // Update selectedRoomName only if the settled page is different
-            // from the currently selected room (meaning the user swiped the pager).
             if (selectedRoomName != currentPagerRoom) {
                 selectedRoomName = currentPagerRoom
             }
         }
     }
 
-    // --- Main Layout: LazyColumn allows scrolling if content overflows ---
+    // --- Main Layout (Keep as is) ---
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background) // Use theme background
-            .padding(horizontal = 16.dp), // Consistent horizontal padding
-        contentPadding = PaddingValues(top = 16.dp, bottom = 96.dp) // More bottom padding needed due to bottom bar height
+            .background(MaterialTheme.colorScheme.background)
+            .padding(horizontal = 16.dp),
+        // Adjust bottom padding carefully based on whether bottom bar is present or not.
+        // Since padding is now handled by NavHost based on showBottomBar,
+        // we might not need explicit large bottom padding here anymore.
+        // Test this visually. Let's reduce it for now.
+        contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp) // Reduced bottom padding
     ) {
-        // --- Header (Always Visible) ---
+        // --- Header ---
         item {
             HomeHeader(userName = userName, date = currentDate)
-            Spacer(modifier = Modifier.height(28.dp)) // Adjusted spacing
+            Spacer(modifier = Modifier.height(28.dp))
         }
 
-        // --- Room Selector (Always Visible) ---
+        // --- Room Selector ---
         item {
             Text(
-                text = "Rooms", // Simple title for the section
+                text = "Rooms",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Medium, // Slightly less heavy than Bold
+                fontWeight = FontWeight.Medium,
                 modifier = Modifier.padding(bottom = 12.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant // Subtle title color
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             RoomSelector(
                 rooms = rooms,
-                selectedRoom = selectedRoomName, // Pass the selected room for highlighting
+                selectedRoom = selectedRoomName,
                 onRoomSelected = { roomName ->
-                    // If clicking the *already selected* room, deselect it
                     selectedRoomName = if (selectedRoomName == roomName) null else roomName
                 }
             )
-            Spacer(modifier = Modifier.height(28.dp)) // Adjusted spacing
+            Spacer(modifier = Modifier.height(28.dp))
         }
 
         // --- Conditional Content Area (Animated) ---
         item {
-            // AnimatedContent switches between the two states below
             AnimatedContent(
-                targetState = selectedRoomName, // Animate based on whether a room is selected (null vs non-null)
+                targetState = selectedRoomName,
                 label = "ContentAreaSwitcher",
                 transitionSpec = {
-                    // Define transitions for a smoother appearance/disappearance
                     if (targetState != null && initialState == null) {
-                        // Content appearing (Pager)
-                        slideInVertically { height -> height } + fadeIn() togetherWith
-                                slideOutVertically { height -> -height } + fadeOut()
+                        (slideInVertically { height -> height } + fadeIn()) togetherWith
+                                (slideOutVertically { height -> -height } + fadeOut())
                     } else if (targetState == null && initialState != null){
-                        // Content disappearing (Pager hiding, default appearing)
-                        slideInVertically { height -> -height } + fadeIn() togetherWith
-                                slideOutVertically { height -> height } + fadeOut()
+                        (slideInVertically { height -> -height } + fadeIn()) togetherWith
+                                (slideOutVertically { height -> height } + fadeOut())
                     } else {
-                        // No change or simultaneous change (shouldn't happen often here)
                         fadeIn() togetherWith fadeOut()
-                    } using SizeTransform(clip = false) // Prevent clipping during size change
+                    } using SizeTransform(clip = false)
                 }
             ) { currentSelectedRoom ->
                 if (currentSelectedRoom != null) {
@@ -285,34 +318,37 @@ fun HomeScreen(auth: FirebaseAuth) {
                         state = pagerState,
                         modifier = Modifier
                             .fillMaxWidth()
-                            // Let the content determine height, up to a point? Or fixed height?
-                            // Using wrapContentHeight() allows flexibility but might jump around.
-                            // A fixed height might be smoother visually. Let's try semi-fixed.
-                            .heightIn(min = 300.dp, max = 500.dp), // Allow some flexibility
-                        pageSpacing = 16.dp, // Space between pages
-                        contentPadding = PaddingValues(vertical = 8.dp) // Padding above/below pager content
+                            .heightIn(min = 300.dp, max = 500.dp), // Keep height constraints
+                        pageSpacing = 16.dp,
+                        contentPadding = PaddingValues(vertical = 8.dp)
                     ) { pageIndex ->
-                        val roomNameForPage = rooms[pageIndex]
-                        key(roomNameForPage) { // Ensure state resets correctly if needed per page
-                            RoomControls(roomName = roomNameForPage) // Pass the room name
+                        // Ensure correct room name is passed based on the page index
+                        val roomNameForPage = rooms.getOrNull(pageIndex)
+                        if (roomNameForPage != null) {
+                            // Use key to help Compose manage state correctly during swipes
+                            key(roomNameForPage) {
+                                RoomControls(roomName = roomNameForPage)
+                            }
+                        } else {
+                            // Placeholder or error view if index is out of bounds (shouldn't happen)
+                            Text("Error: Room not found at index $pageIndex")
                         }
                     }
                 } else {
                     // --- STATE 2: No Room Selected - Show Default Widgets ---
                     Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            text = "Overview", // Title for this section
+                            text = "Overview",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier.padding(bottom = 12.dp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        // --- Global Conditions ---
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp) // Slightly less space
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             InfoWidget(
                                 icon = Icons.Filled.Thermostat,
@@ -321,24 +357,22 @@ fun HomeScreen(auth: FirebaseAuth) {
                                 modifier = Modifier.weight(1f)
                             )
                             InfoWidget(
-                                icon = Icons.Filled.WaterDrop, // Corrected icon name
+                                icon = Icons.Filled.WaterDrop,
                                 label = "Humidity",
                                 value = globalHumidity,
                                 modifier = Modifier.weight(1f)
                             )
                         }
                         Spacer(modifier = Modifier.height(28.dp))
-
-                        // --- Quick Scenes ---
                         Text(
-                            text = "Quick Scenes", // Title for this section
+                            text = "Quick Scenes",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier.padding(bottom = 12.dp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(10.dp), // Adjust spacing
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
                             contentPadding = PaddingValues(horizontal = 2.dp)
                         ) {
                             item { SceneButton(icon = Icons.Default.WbSunny, label = "Morning", onClick = { /* TODO */ }) }
@@ -346,7 +380,7 @@ fun HomeScreen(auth: FirebaseAuth) {
                             item { SceneButton(icon = Icons.Default.Weekend, label = "Relax", onClick = { /* TODO */ }) }
                             item { SceneButton(icon = Icons.Default.Bedtime, label = "Night", onClick = { /* TODO */ }) }
                         }
-                        Spacer(modifier = Modifier.height(16.dp)) // Final spacer in this column
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
                 }
             }
@@ -355,58 +389,53 @@ fun HomeScreen(auth: FirebaseAuth) {
 }
 
 
-// --- RoomSelector (Styled) ---
+// --- RoomSelector (Keep as is) ---
 @Composable
 fun RoomSelector(
     rooms: List<String>,
-    selectedRoom: String?, // Current selection state from HomeScreen
-    onRoomSelected: (String) -> Unit // Callback to HomeScreen
+    selectedRoom: String?,
+    onRoomSelected: (String) -> Unit
 ) {
     LazyRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(horizontal = 2.dp) // Small edge padding for the row
+        contentPadding = PaddingValues(horizontal = 2.dp)
     ) {
         items(rooms) { room ->
             val isSelected = selectedRoom == room
-            val targetContainerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer // Use theme color
-            else MaterialTheme.colorScheme.surfaceVariant // Theme color for unselected
+            val targetContainerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer
+            else MaterialTheme.colorScheme.surfaceVariant
             val targetContentColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
             else MaterialTheme.colorScheme.onSurfaceVariant
             val targetBorderColor = if (isSelected) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.outlineVariant // Subtle border
-            val targetFontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium // Adjust weight
+            else MaterialTheme.colorScheme.outlineVariant
+            val targetFontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
 
             Surface(
                 modifier = Modifier
-                    // Consider minWidth if names vary greatly, or keep fixed width
-                    .widthIn(min = 110.dp) // Allow some flexibility
+                    .widthIn(min = 110.dp)
                     .height(45.dp)
-                    .clickable { onRoomSelected(room) }, // Notify HomeScreen of click
-                shape = RoundedCornerShape(12.dp), // Consistent rounded corners
-                color = targetContainerColor, // Apply theme color
-                contentColor = targetContentColor, // Apply theme color for text/icon
+                    .clickable { onRoomSelected(room) },
+                shape = RoundedCornerShape(12.dp),
+                color = targetContainerColor,
+                contentColor = targetContentColor,
                 border = BorderStroke(
-                    width = if (isSelected) 1.5.dp else 1.dp, // Slightly thicker border if selected
+                    width = if (isSelected) 1.5.dp else 1.dp,
                     color = targetBorderColor
                 ),
-                shadowElevation = if (isSelected) 4.dp else 1.dp // More shadow if selected
+                shadowElevation = if (isSelected) 4.dp else 1.dp
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 14.dp, vertical = 8.dp), // Adjust padding
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    // Optional: Add an icon? E.g., based on room name
-                    // Icon(Icons.Default.Chair, contentDescription = null, modifier = Modifier.size(16.dp))
-                    // Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = room,
-                        style = MaterialTheme.typography.labelLarge, // Slightly larger label style
-                        fontWeight = targetFontWeight, // Apply dynamic font weight
-                        // Color is inherited from Surface contentColor
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = targetFontWeight,
                         maxLines = 1
                     )
                 }
@@ -415,13 +444,13 @@ fun RoomSelector(
     }
 }
 
-// --- HomeHeader (Styled) ---
+// --- HomeHeader (Keep as is) ---
 @Composable
 fun HomeHeader(userName: String, date: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 8.dp), // Reduced top padding slightly
+            .padding(top = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -432,22 +461,21 @@ fun HomeHeader(userName: String, date: String) {
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant), // Subtle background
-                tint = MaterialTheme.colorScheme.primary // Use primary color for accent
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                tint = MaterialTheme.colorScheme.primary
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
-                    // More welcoming greeting
                     text = "Hello, $userName!",
-                    style = MaterialTheme.typography.headlineSmall, // Slightly smaller headline
-                    fontWeight = FontWeight.Normal, // Less heavy greeting
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Normal,
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
-                    text = date, // Formatted date
-                    style = MaterialTheme.typography.bodyMedium, // Standard body style
-                    color = MaterialTheme.colorScheme.onSurfaceVariant // Subtle date color
+                    text = date,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -455,14 +483,14 @@ fun HomeHeader(userName: String, date: String) {
             Icon(
                 imageVector = Icons.Default.Settings,
                 contentDescription = "Settings",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant // Subtle icon color
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
 }
 
 
-// --- InfoWidget (Styled) ---
+// --- InfoWidget (Keep as is) ---
 @Composable
 fun InfoWidget(
     icon: ImageVector,
@@ -471,15 +499,14 @@ fun InfoWidget(
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.height(IntrinsicSize.Min), // Adjust height
-        shape = RoundedCornerShape(16.dp), // Slightly more rounded
-        // Use a slightly different surface color for visual separation
+        modifier = modifier.height(IntrinsicSize.Min),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp) // Minimal elevation
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
             modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 14.dp) // Adjusted padding
+                .padding(horizontal = 16.dp, vertical = 14.dp)
                 .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -487,29 +514,28 @@ fun InfoWidget(
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                // Use secondary or primary color for icon accent
                 tint = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.size(22.dp) // Slightly larger icon
+                modifier = Modifier.size(22.dp)
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant // Subtle label color
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = value,
-                style = MaterialTheme.typography.titleMedium, // Good size for value
-                fontWeight = FontWeight.SemiBold, // Slightly less heavy than Bold
-                color = MaterialTheme.colorScheme.onSurface // Clear value color
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
     }
 }
 
 
-// --- SceneButton (Styled) ---
+// --- SceneButton (Keep as is) ---
 @Composable
 fun SceneButton(
     icon: ImageVector,
@@ -517,24 +543,23 @@ fun SceneButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Using FilledTonalButton for a subtle but contained look
     FilledTonalButton(
         onClick = onClick,
-        modifier = modifier.height(48.dp), // Standard height
-        shape = RoundedCornerShape(12.dp), // Consistent rounding
-        contentPadding = PaddingValues(horizontal = 12.dp), // Adjust padding if needed
+        modifier = modifier.height(48.dp),
+        shape = RoundedCornerShape(12.dp),
+        contentPadding = PaddingValues(horizontal = 12.dp),
         colors = ButtonDefaults.filledTonalButtonColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer, // Use theme color
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
         ),
-        elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp) // Minimal elevation
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelMedium, // Good style for button labels
+                style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Medium
             )
         }
@@ -542,50 +567,37 @@ fun SceneButton(
 }
 
 
-// --- RoomControls (Contains the Pager Item Content) ---
+// --- RoomControls (Keep mostly as is, ensure key usage) ---
 @Composable
 fun RoomControls(roomName: String) {
-    // State using remember(key) - resets when swiping *away* and *back* to the same room
-    // For persistent state within the session, hoist this state to HomeScreen or a ViewModel.
+    // State remains scoped to the specific room instance within the pager page
     var temperature by remember(roomName) { mutableStateOf(20f) }
     var isLightOn by remember(roomName) { mutableStateOf(true) }
-    var isDoorLocked by remember(roomName) { mutableStateOf(true) } // Example state
+    var isDoorLocked by remember(roomName) { mutableStateOf(true) }
 
-    // Column containing controls for *one* room, displayed within the Pager
     Column(
         modifier = Modifier
-            .fillMaxSize() // Fill the space given by the Pager
-            .padding(horizontal = 4.dp), // Add horizontal padding within the page
-        verticalArrangement = Arrangement.spacedBy(16.dp), // Space between control cards
+            .fillMaxSize()
+            .padding(horizontal = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Optional: Display room name subtly within the controls area
-        /* Text(
-             roomName,
-             style = MaterialTheme.typography.titleSmall,
-             color = MaterialTheme.colorScheme.onSurfaceVariant,
-             modifier = Modifier.padding(bottom = 8.dp)
-         ) */
-
-        // --- Temperature Control Card ---
+        // Temperature Control Card
         ControlCard(title = "Temperature", icon = Icons.Default.Thermostat) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = "${temperature.toInt()}°C",
-                    style = MaterialTheme.typography.headlineMedium, // Larger display for temp
+                    style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.height(8.dp))
                 Slider(
                     value = temperature,
-                    onValueChange = { newValue ->
-                        temperature = newValue
-                        // TODO: Update actual device/backend for roomName
-                    },
-                    valueRange = 10f..30f, // Adjusted range example
-                    steps = 19, // (30-10)/1 = 20 steps -> 19 divisions
-                    colors = SliderDefaults.colors( // Use theme colors for slider
+                    onValueChange = { newValue -> temperature = newValue },
+                    valueRange = 10f..30f,
+                    steps = 19,
+                    colors = SliderDefaults.colors(
                         thumbColor = MaterialTheme.colorScheme.primary,
                         activeTrackColor = MaterialTheme.colorScheme.primary,
                         inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -594,7 +606,7 @@ fun RoomControls(roomName: String) {
             }
         }
 
-        // --- Light Control Card ---
+        // Light Control Card
         ControlCard(title = "Main Light", icon = Icons.Default.Lightbulb) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -609,11 +621,8 @@ fun RoomControls(roomName: String) {
                 )
                 Switch(
                     checked = isLightOn,
-                    onCheckedChange = { newState ->
-                        isLightOn = newState
-                        // TODO: Update actual device/backend for roomName
-                    },
-                    colors = SwitchDefaults.colors( // Use theme colors for switch
+                    onCheckedChange = { newState -> isLightOn = newState },
+                    colors = SwitchDefaults.colors(
                         checkedThumbColor = MaterialTheme.colorScheme.primary,
                         checkedTrackColor = MaterialTheme.colorScheme.primaryContainer,
                         uncheckedThumbColor = MaterialTheme.colorScheme.outline,
@@ -623,8 +632,8 @@ fun RoomControls(roomName: String) {
             }
         }
 
-        // --- Door Control Card (Conditional) ---
-        if (roomName == "Garage" || roomName == "Office") { // Example condition
+        // Door Control Card (Conditional)
+        if (roomName == "Garage" || roomName == "Office") {
             ControlCard(title = "Security Lock", icon = Icons.Default.Lock) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -637,21 +646,14 @@ fun RoomControls(roomName: String) {
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    // Using toggle buttons for lock/unlock can be clearer
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
-                            onClick = {
-                                isDoorLocked = true
-                                // TODO: Send lock command for roomName
-                            },
+                            onClick = { isDoorLocked = true },
                             enabled = !isDoorLocked,
                             border = BorderStroke(1.dp, if (!isDoorLocked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline)
                         ) { Text("Lock") }
                         OutlinedButton(
-                            onClick = {
-                                isDoorLocked = false
-                                // TODO: Send unlock command for roomName
-                            },
+                            onClick = { isDoorLocked = false },
                             enabled = isDoorLocked,
                             border = BorderStroke(1.dp, if (isDoorLocked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline)
                         ) { Text("Unlock") }
@@ -659,12 +661,11 @@ fun RoomControls(roomName: String) {
                 }
             }
         }
-        // Add more ControlCards based on roomName or device types in that room...
     }
 }
 
 
-// --- ControlCard (Styled) ---
+// --- ControlCard (Keep as is) ---
 @Composable
 fun ControlCard(
     title: String,
@@ -674,41 +675,63 @@ fun ControlCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp), // Consistent rounding
-        // Use a slightly elevated surface color for cards
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp) // Minimal elevation
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), // Slightly different surface
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp) // Slightly more elevation
     ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)) { // Standard padding
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    icon,
-                    contentDescription = title,
-                    // Use primary or secondary color for the icon accent
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp) // Standard icon size
+                    imageVector = icon,
+                    contentDescription = null, // Decorative
+                    tint = MaterialTheme.colorScheme.primary, // Use primary color for icon
+                    modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    title,
-                    style = MaterialTheme.typography.titleMedium, // Clear title style
-                    fontWeight = FontWeight.SemiBold, // Good weight for card titles
-                    color = MaterialTheme.colorScheme.onSurface // Ensure readability
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall, // Slightly smaller title
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface // Clear title color
                 )
             }
             Spacer(modifier = Modifier.height(12.dp)) // Space before content
-            // Inject the specific control content (Slider, Switch, etc.)
+            // Provide the content composable defined in the lambda
             content()
         }
     }
 }
 
+// --- Placeholder Screens (You need to implement these) ---
+@Composable
+fun StatsUsageScreen() {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text("Statistics Screen", style = MaterialTheme.typography.headlineMedium)
+    }
+}
 
-// --- Other Helpers (Keep as is or ensure they use theme colors) ---
-enum class DeviceType { Light, Thermostat, DoorLock, Generic }
-// data class DeviceState(...)
-
-// --- Placeholder Screens (Keep as is) ---
-@Composable fun StatsUsageScreen() { Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Stats Screen") } }
-@Composable fun ProfileScreen() { Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Profile Screen") } }
-@Composable fun AddDeviceScreen() { Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Add Device Screen") } }
+@Composable
+fun AddDeviceScreen(navController: NavHostController) { // Pass NavController
+    Scaffold( // Use Scaffold for potential TopAppBar
+        topBar = {
+            TopAppBar(
+                title = { Text("Add New Device") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) { // Navigate back
+                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        }
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues), // Apply padding from Scaffold
+            contentAlignment = Alignment.Center
+        ) {
+            Text("Add Device Screen Content", style = MaterialTheme.typography.headlineMedium)
+            // Add your device adding UI here
+        }
+    }
+}
