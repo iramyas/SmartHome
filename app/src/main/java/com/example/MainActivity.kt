@@ -1,7 +1,6 @@
-@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalAnimationApi::class) // Enable specific APIs
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalAnimationApi::class)
 
 package com.example.smarthome
-
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -17,7 +16,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.*
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.map
-
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
@@ -46,30 +44,25 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-// Navigation Imports
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
 
-// Coroutines & Flow Imports
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
-// DataStore Imports
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 
-// Local App Imports
 import com.example.smarthome.ui.theme.SmartHomeTheme
-import com.example.smarthome.ui.theme.ThemeOption // Import theme options from ui.theme package
+import com.example.smarthome.ui.theme.ThemeOption
 
-// Firebase Imports
 import com.google.firebase.auth.FirebaseAuth
 
 
@@ -77,14 +70,11 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 
-// Data class for Quick Scene buttons
 data class Scene(val name: String, val icon: ImageVector)
 
-// --- DataStore instances ---
 private val Context.roomDataStore by preferencesDataStore(name = "room_prefs")
 private val Context.settingsDataStore by preferencesDataStore(name = "app_settings")
 
-// --- Manages theme preference saving/loading ---
 class ThemePreferences(context: Context) {
     private val appContext = context.applicationContext
     private val dataStore = appContext.settingsDataStore
@@ -97,15 +87,15 @@ class ThemePreferences(context: Context) {
         .map { preferences ->
             val themeName = preferences[PreferencesKeys.THEME_KEY]
             try {
-                // Default to Light if no theme saved or saved theme is 'System'
                 when (themeName) {
                     ThemeOption.Light.name -> ThemeOption.Light
                     ThemeOption.Dark.name -> ThemeOption.Dark
+                    ThemeOption.Pink.name -> ThemeOption.Pink
                     else -> ThemeOption.Light
                 }
             } catch (e: IllegalArgumentException) {
                 Log.e("ThemePreferences", "Invalid theme name in DataStore: $themeName", e)
-                ThemeOption.Light // Fallback
+                ThemeOption.Light
             }
         }
 
@@ -116,26 +106,22 @@ class ThemePreferences(context: Context) {
     }
 }
 
-// --- Manages room-specific settings (temp, light) saving/loading ---
 class RoomPreferences(context: Context) {
     private val appContext = context.applicationContext
     private val dataStore = appContext.roomDataStore
 
-    private fun tempKey(room: String) = floatPreferencesKey("${room}_temp") // Key for temperature (Float)
-    private fun lightKey(room: String) = booleanPreferencesKey("${room}_light") // Key for light state (Boolean)
+    private fun tempKey(room: String) = floatPreferencesKey("${room}_temp")
+    private fun lightKey(room: String) = booleanPreferencesKey("${room}_light")
 
-    // Flow emitting settings for a specific room, handles potential type mismatch from old data
     fun roomSettingsFlow(roomName: String): Flow<RoomSettings> = dataStore.data
         .map { preferences ->
-            // --- Temperature Reading with Migration ---
-            val tempPrefValue: Any? = preferences[tempKey(roomName)] // Read as Any? first
+            val tempPrefValue: Any? = preferences[tempKey(roomName)]
             val temperature: Float = when (tempPrefValue) {
-                is Float -> tempPrefValue // If already Float, use it
-                is String -> tempPrefValue.toFloatOrNull() ?: 20f // If String, try to parse, fallback to 20f
-                else -> 20f // Default if null or unexpected type
+                is Float -> tempPrefValue
+                is String -> tempPrefValue.toFloatOrNull() ?: 20f
+                else -> 20f
             }
 
-            // --- Light Reading with Migration ---
             val lightPrefValue: Any? = preferences[lightKey(roomName)]
             val isLightOn: Boolean = when(lightPrefValue) {
                 is Boolean -> lightPrefValue
@@ -144,25 +130,21 @@ class RoomPreferences(context: Context) {
             }
 
 
-            // Log.d("RoomPreferences", "Read for $roomName: Temp=$temperature (from type ${tempPrefValue?.javaClass?.simpleName}), Light=$isLightOn (from type ${lightPrefValue?.javaClass?.simpleName})")
-
             RoomSettings(
                 temperature = temperature,
                 isLightOn = isLightOn
             )
         }
 
-    // Saves settings for a specific room to DataStore
     suspend fun saveRoomSettings(roomName: String, settings: RoomSettings) {
         Log.d("RoomPreferences", "Saving settings for $roomName: Temp=${settings.temperature}, Light=${settings.isLightOn}")
         dataStore.edit { preferences ->
             preferences[tempKey(roomName)] = settings.temperature
-            preferences[lightKey(roomName)] = settings.isLightOn // Save as Boolean
+            preferences[lightKey(roomName)] = settings.isLightOn
         }
     }
 }
 
-// --- Main Activity ---
 class MainActivity : ComponentActivity() {
     private lateinit var auth: FirebaseAuth
     private lateinit var roomPreferences: RoomPreferences
@@ -175,8 +157,7 @@ class MainActivity : ComponentActivity() {
         themePreferences = ThemePreferences(applicationContext)
 
         setContent {
-            // Initial theme state will be determined by the selectedThemeFlow default logic
-            val currentTheme by themePreferences.selectedThemeFlow.collectAsState(initial = ThemeOption.Light) // Default initial state to Light
+            val currentTheme by themePreferences.selectedThemeFlow.collectAsState(initial = ThemeOption.Light)
             Log.d("MainActivity", "Applying theme: $currentTheme")
 
             SmartHomeTheme(selectedTheme = currentTheme) {
@@ -192,7 +173,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// --- Bottom Navigation Bar Composable ---
 @Composable
 fun AppBottomNavigationBar(
     currentRoute: String,
@@ -211,23 +191,23 @@ fun AppBottomNavigationBar(
             selected = currentRoute == AppDestinations.HOME,
             onClick = {
                 Log.d("Navigation", "Home clicked")
-                navController.navigate(AppDestinations.HOME) { /* Nav options */ }
+                navController.navigate(AppDestinations.HOME) { }
             },
             icon = { Icon(Icons.Outlined.Home, contentDescription = "Home") },
             label = { Text("Home") },
             alwaysShowLabel = false,
-            colors = NavigationBarItemDefaults.colors(/* Themed colors */)
+            colors = NavigationBarItemDefaults.colors()
         )
         NavigationBarItem(
             selected = currentRoute == AppDestinations.STATS,
             onClick = {
                 Log.d("Navigation", "Stats clicked")
-                navController.navigate(AppDestinations.STATS) { /* Nav options */ }
+                navController.navigate(AppDestinations.STATS) { }
             },
             icon = { Icon(Icons.Outlined.BarChart, contentDescription = "Statistics") },
             label = { Text("Stats") },
             alwaysShowLabel = false,
-            colors = NavigationBarItemDefaults.colors(/* Themed colors */)
+            colors = NavigationBarItemDefaults.colors()
         )
         Spacer(Modifier.weight(1f))
         FloatingActionButton(
@@ -246,14 +226,12 @@ fun AppBottomNavigationBar(
     }
 }
 
-// --- Defines navigation route constants ---
 object AppDestinations {
     const val HOME = "home"
     const val STATS = "stats"
     const val ADD_DEVICE = "add_device"
 }
 
-// --- Main Scaffold providing structure and bottom bar ---
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun MainAppScaffold(
@@ -303,13 +281,11 @@ fun MainAppScaffold(
     }
 }
 
-// --- Data class for Room Settings state ---
 data class RoomSettings(
     val temperature: Float = 20f,
     val isLightOn: Boolean = false
 )
 
-// --- Home Screen Composable ---
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
 fun HomeScreen(
@@ -333,9 +309,8 @@ fun HomeScreen(
         Scene("Night", Icons.Default.Bedtime)
     )}
 
-    // Theme Dialog
     if (showThemeDialog) {
-        val currentTheme by themePreferences.selectedThemeFlow.collectAsState(initial = ThemeOption.Light) // Default initial state to Light
+        val currentTheme by themePreferences.selectedThemeFlow.collectAsState(initial = ThemeOption.Light)
         ThemeSelectionDialog(
             currentTheme = currentTheme,
             onThemeSelected = { selectedTheme ->
@@ -350,13 +325,11 @@ fun HomeScreen(
         )
     }
 
-    // Back Handler
     BackHandler(enabled = selectedRoomIndex != null) {
         Log.d("HomeScreen", "Back pressed, exiting room details")
         selectedRoomIndex = null
     }
 
-    // Effect to scroll Pager to initial selected page
     LaunchedEffect(selectedRoomIndex) {
         selectedRoomIndex?.let { index ->
             if (pagerState.currentPage != index) {
@@ -366,7 +339,6 @@ fun HomeScreen(
         }
     }
 
-    // Effect to update selection state when user swipes pager
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.currentPage }
             .distinctUntilChanged()
@@ -378,7 +350,6 @@ fun HomeScreen(
             }
     }
 
-    // Main Layout Column
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         HomeHeader(userName = userFirstName, date = currentDate, onSettingsClick = { Log.d("HomeScreen", "Settings icon clicked!"); showThemeDialog = true })
         Spacer(modifier = Modifier.height(16.dp))
@@ -393,29 +364,25 @@ fun HomeScreen(
         )
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Animated Content Area switching Overview / Pager
         AnimatedContent(
             targetState = selectedRoomIndex,
             modifier = Modifier.fillMaxWidth().weight(1f),
             transitionSpec = {
-                // Define animations for content switch
-                if (targetState != null && initialState == null) { // Enter Pager
+                if (targetState != null && initialState == null) {
                     slideInVertically(tween(400)) { h -> h / 4 } + fadeIn(tween(400)) togetherWith
                             slideOutVertically(tween(400)) { h -> -h / 4 } + fadeOut(tween(400))
-                } else if (targetState == null && initialState != null) { // Exit Pager
+                } else if (targetState == null && initialState != null) {
                     slideInVertically(tween(400)) { h -> -h / 4 } + fadeIn(tween(400)) togetherWith
                             slideOutVertically(tween(400)) { h -> h / 4 } + fadeOut(tween(400))
-                } else { // Default fade
+                } else {
                     fadeIn(tween(150)) togetherWith fadeOut(tween(150))
                 } using SizeTransform(clip = false)
             },
             label = "OverviewPagerSwitch"
         ) { currentSelectedRoomIndex ->
             if (currentSelectedRoomIndex == null) {
-                // Show Overview Content
                 OverviewContent(globalTemperature, globalHumidity, scenes)
             } else {
-                // Show Room Details Pager
                 Log.d("HomeScreen", "Displaying Pager because selectedRoomIndex is $currentSelectedRoomIndex")
                 HorizontalPager(
                     state = pagerState,
@@ -426,7 +393,7 @@ fun HomeScreen(
                     if (pageIndex >= 0 && pageIndex < rooms.size) {
                         val roomName = rooms[pageIndex]
                         Log.d("HomeScreen", "Pager composing page for: $roomName (Index $pageIndex)")
-                        key(roomName) { // Key for efficient recomposition
+                        key(roomName) {
                             RoomControls(roomName = roomName, roomPreferences = roomPreferences)
                         }
                     } else {
@@ -439,7 +406,6 @@ fun HomeScreen(
     }
 }
 
-// --- Composable for the Overview Content (Global Status, Scenes) ---
 @Composable
 fun OverviewContent(
     globalTemperature: String,
@@ -467,8 +433,18 @@ fun OverviewContent(
     }
 }
 
+private fun getRoomIcon(roomName: String): ImageVector {
+    return when (roomName) {
+        "Living Room" -> Icons.Filled.Weekend
+        "Bedroom" -> Icons.Filled.Bed
+        "Kitchen" -> Icons.Filled.Kitchen
+        "Bathroom" -> Icons.Filled.Bathroom
+        "Office" -> Icons.Filled.Work
+        "Garage" -> Icons.Filled.Garage
+        else -> Icons.Filled.Home
+    }
+}
 
-// --- Composable for the horizontal list of Room selection buttons ---
 @Composable
 fun RoomSelector(
     rooms: List<String>,
@@ -487,6 +463,7 @@ fun RoomSelector(
             val targetContentColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
             val targetBorderColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
             val targetFontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+            val roomIcon = getRoomIcon(room)
 
             Surface(
                 modifier = Modifier
@@ -507,6 +484,13 @@ fun RoomSelector(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
+                    Icon(
+                        imageVector = roomIcon,
+                        contentDescription = room,
+                        tint = targetContentColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(text = room, style = MaterialTheme.typography.labelLarge, fontWeight = targetFontWeight, maxLines = 1)
                 }
             }
@@ -514,7 +498,6 @@ fun RoomSelector(
     }
 }
 
-// --- Composable displaying controls for a single room ---
 @Composable
 fun RoomControls(
     roomName: String,
@@ -548,7 +531,7 @@ fun RoomControls(
                         Log.d("RoomControls", "$roomName Light toggled: $newLightState")
                         coroutineScope.launch { roomPreferences.saveRoomSettings(roomName, settings.copy(isLightOn = newLightState)) }
                     },
-                    colors = SwitchDefaults.colors(/* Themed colors */)
+                    colors = SwitchDefaults.colors()
                 )
             }
 
@@ -571,9 +554,9 @@ fun RoomControls(
                         }
                     },
                     valueRange = 10f..30f,
-                    steps = 39, // Defines steps for slider (e.g., 0.5 degree increments)
+                    steps = 39,
                     modifier = Modifier.fillMaxWidth(),
-                    colors = SliderDefaults.colors(/* Themed colors */)
+                    colors = SliderDefaults.colors()
                 )
             }
         }
@@ -581,7 +564,6 @@ fun RoomControls(
 }
 
 
-// --- Composable for the Header section of the Home screen ---
 @Composable
 fun HomeHeader(userName: String, date: String, onSettingsClick: () -> Unit) {
     Row(
@@ -597,13 +579,12 @@ fun HomeHeader(userName: String, date: String, onSettingsClick: () -> Unit) {
                 Text(text = date, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        IconButton(onClick = onSettingsClick) { // Settings icon button
+        IconButton(onClick = onSettingsClick) {
             Icon(imageVector = Icons.Filled.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
 
-// --- Composable for displaying info widgets (e.g., Temp, Humidity) ---
 @Composable
 fun InfoWidget(icon: ImageVector, label: String, value: String, modifier: Modifier = Modifier) {
     Card(
@@ -620,7 +601,6 @@ fun InfoWidget(icon: ImageVector, label: String, value: String, modifier: Modifi
     }
 }
 
-// --- Composable for the circular Quick Scene buttons ---
 @Composable
 fun SceneButton(icon: ImageVector, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Column(
@@ -637,7 +617,6 @@ fun SceneButton(icon: ImageVector, label: String, onClick: () -> Unit, modifier:
     }
 }
 
-// --- Composable for the Theme Selection Dialog ---
 @Composable
 fun ThemeSelectionDialog(
     currentTheme: ThemeOption,
@@ -649,8 +628,7 @@ fun ThemeSelectionDialog(
         title = { Text("Select Theme", color = MaterialTheme.colorScheme.onSurface) },
         text = {
             Column {
-                // Filter out the System theme option
-                ThemeOption.values().filter { it != ThemeOption.Light }.forEach { theme ->
+                ThemeOption.values().filter { it != ThemeOption.System }.forEach { theme ->
                     Row(
                         Modifier.fillMaxWidth().clickable { onThemeSelected(theme) }.padding(vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -674,7 +652,6 @@ fun ThemeSelectionDialog(
 }
 
 
-// --- Placeholder: Statistics Screen Composable ---
 @Composable
 fun StatsUsageScreen() {
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
@@ -682,7 +659,6 @@ fun StatsUsageScreen() {
     }
 }
 
-// --- Placeholder: Add Device Screen Composable ---
 @Composable
 fun AddDeviceScreen(navController: NavHostController) {
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
