@@ -68,11 +68,16 @@ dependencies {
 //    implementation("androidx.compose.material:material-icons-extended:<version>")
 
     implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.1")
+    implementation("androidx.compose.material3:material3:1.x.x")
 
 
     implementation("androidx.compose.foundation:foundation:1.4.3")
     implementation("androidx.compose.material3:material3:1.1.0")
     implementation("androidx.compose.ui:ui:1.4.3")
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
+
     // Firebase Dependencies
 
     // UPDATE THE VERSION HERE:
@@ -82,6 +87,8 @@ dependencies {
 
     implementation("androidx.compose.ui:ui:1.4.0")
     implementation("androidx.compose.foundation:foundation:1.4.0")
+    implementation("androidx.compose.material:material-icons-extended:1.4.3")
+
 
 
     //implementation("androidx.compose.material:material-icons-extended:1.6.7")
@@ -98,9 +105,12 @@ dependencies {
     implementation("androidx.compose.material3:material3:1.3.0-beta01") // And material3
 
     //implementation("com.google.firebase:firebase-firestore-ktx")
+    implementation("com.google.firebase:firebase-crashlytics:18.3.2")
+    implementation("com.google.firebase:firebase-analytics:21.2.1")
     implementation("com.google.firebase:firebase-database-ktx")
     implementation("androidx.navigation:navigation-compose:2.7.7") // Use the latest version
     implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.compose.material3:material3:1.x.x")
 //    implementation("com.firebaseui:firebase-ui-auth:8.0.2")  Keep this if you are using Firebase UI
     //implementation("com.google.firebase:firebase-database-ktx") // Keep this if you need Realtime Database
 //    implementation("com.google.firebase:firebase-common:24.0.0") {
@@ -111,6 +121,7 @@ dependencies {
     // Google Sign-In
     implementation(libs.googleid)
     implementation(libs.firebase.crashlytics)
+    implementation(libs.firebase.database)
 
     // Testing Dependencies
     testImplementation(libs.junit)
