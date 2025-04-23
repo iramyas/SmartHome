@@ -65,6 +65,10 @@ import com.example.smarthome.ui.theme.ThemeOption
 
 import com.google.firebase.auth.FirebaseAuth
 
+//import androidx.compose.foundation.Image
+//import androidx.compose.ui.draw.alpha
+//import androidx.compose.ui.layout.ContentScale
+//import androidx.compose.ui.res.painterResource
 
 import java.text.SimpleDateFormat
 import java.util.*
