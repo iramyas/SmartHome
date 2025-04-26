@@ -29,6 +29,7 @@ class LoginActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         auth = FirebaseAuth.getInstance()
+        //auth.signOut()
 
         // Check if user is already logged in
         if (auth.currentUser != null) {
@@ -152,6 +153,7 @@ class LoginActivity : ComponentActivity() {
                                     errorMessage = "Email and password cannot be empty"
                                     return@Button
                                 }
+                                println("Email: $email, Password: $password")
 
                                 isLoading = true
                                 errorMessage = ""
@@ -292,12 +294,13 @@ class LoginActivity : ComponentActivity() {
 
                                 if (password != confirmPassword) {
                                     errorMessage = "Passwords do not match"
+                                    return@Button
                                 }
 
                                 isLoading = true
                                 errorMessage = ""
 
-                                auth.signInWithEmailAndPassword(email, password)
+                                auth.createUserWithEmailAndPassword(email, password)
                                     .addOnCompleteListener { task ->
                                         isLoading = false
                                         if (task.isSuccessful) {
