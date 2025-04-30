@@ -18,11 +18,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.map
 
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.tasks.await
+
 
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.ValueEventListener
-//import com.google.firebase.database.ktx.getValue
 import com.google.firebase.database.IgnoreExtraProperties
 
 
@@ -53,6 +55,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import android.content.Intent
 
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -88,6 +91,9 @@ import kotlinx.coroutines.flow.first
 
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.ui.unit.Dp
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.SelectableChipColors
 
 
 data class Scene(val name: String, val icon: ImageVector)
@@ -205,11 +211,6 @@ class RoomPreferences(context: Context) {
             )
         }
 
-//    val generalStatusFlow: Flow<GeneralStatus> = dataStore.data
-//        .map { preferences ->
-//            try { GeneralStatus.valueOf(preferences[generalStatusKey()] ?: GeneralStatus.OK.name) } catch (e: Exception) { GeneralStatus.OK }
-//        }
-
     fun getAllRoomSettingsFlow(): Flow<Map<String, RoomSettings>> = dataStore.data
         .map { preferences ->
             val settingsMap = mutableMapOf<String, RoomSettings>()
@@ -280,12 +281,6 @@ class RoomPreferences(context: Context) {
             preferences[deviceNamesKey(roomName)] = settings.deviceNames.joinToString(",")
         }
     }
-
-//    suspend fun saveGeneralStatus(status: GeneralStatus) {
-//        dataStore.edit { preferences ->
-//            preferences[generalStatusKey()] = status.name
-//        }
-//    }
 }
 
 class MainActivity : ComponentActivity() {
@@ -300,7 +295,7 @@ class MainActivity : ComponentActivity() {
         auth = FirebaseAuth.getInstance()
         themePreferences = ThemePreferences(applicationContext)
         roomPreferences = RoomPreferences(applicationContext)
-        database= Firebase.database.reference
+        database = Firebase.database.reference
         initializeRoomsInFirebase(database)
 
         setContent {
@@ -310,9 +305,9 @@ class MainActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     MainAppScaffold(
                         auth = auth,
-                        database= database,
+                        database = database,
                         themePreferences = themePreferences,
-                        roomPreferences = roomPreferences
+                        roomPreferences = roomPreferences 
                     )
                 }
             }
@@ -432,15 +427,22 @@ fun MainAppScaffold(
             composable(AppDestinations.HOME) {
                 HomeScreen(
                     auth = auth,
-                    database= database,
+                    database = database,
                     themePreferences = themePreferences,
+                    roomPreferences = roomPreferences
                 )
             }
 
             composable(AppDestinations.STATS) {
                 StatsUsageScreen(roomPreferences = roomPreferences)
             }
-            composable(AppDestinations.ADD_DEVICE) { AddDeviceScreen(navController = navController) }
+            composable(AppDestinations.ADD_DEVICE) {
+                AddDeviceScreen(
+                    navController = navController,
+                    database = database,
+                    roomPreferences = roomPreferences
+                )
+            }
         }
     }
 }
@@ -464,35 +466,79 @@ data class RoomSettings(
     constructor() : this(null, false, null, true, false, 21f, 50, FireAlarmState.OK, true, false, GeneralStatus.OK, emptyList())
 }
 
-fun defaultRoomSettings(): RoomSettings {
-    return RoomSettings(
-        temperature = 20f,
-        isLightOn = false,
-        humidity = 50f,
-        isDoorLocked = true,
-        isClimateOn = false,
-        targetTemperature = 22f,
-        blindPosition = 50,
-        fireAlarmStatus = FireAlarmState.OK,
-        isNightLightAuto = true,
-        isClapLightEnabled = false,
-        generalStatus = GeneralStatus.OK
-    )
+val firebaseRoomNameMapping = mapOf(
+    "Entrance" to "PorteEntree",
+    "Living Room" to "Salon",
+    "Bedroom" to "Chambre",
+    "Kitchen" to "Cuisine",
+    "Bathroom" to "SalleDeBain",
+    "Office" to "Bureau",
+    "Garage" to "Garage"
+)
+
+fun getFirebaseRoomName(appRoomName: String): String? {
+    return firebaseRoomNameMapping[appRoomName]
+}
+
+fun getAppRoomName(firebaseRoomName: String): String? {
+    return firebaseRoomNameMapping.entries.find { it.value == firebaseRoomName }?.key
+}
+
+
+fun defaultFirebaseRoomData(firebaseRoomName: String): Map<String, Any> {
+    return when (firebaseRoomName) {
+        "PorteEntree" -> mapOf(
+            "Serrure Deverrouillee" to false,
+            "CapteurPresence" to false,
+            "Sonnette" to false
+        )
+        "Salon" -> mapOf(
+            "Lumiere" to false,
+            "Temperature" to 20f,
+            "Humidite" to 50f,
+            "OuvertureStores" to 50,
+            "Climatisation" to mapOf(
+                "Air Conditionné" to false,
+                "Chauffage" to false,
+                "Auto" to false,
+                "Température Cible" to 22f
+            )
+        )
+        "Chambre" -> mapOf(
+            "Lumiere" to false,
+            "Temperature" to 20f,
+            "Humidite" to 45f,
+            "Systeme ClapClap" to false
+        )
+        "Cuisine" -> mapOf(
+            "Lumiere" to false,
+            "Incendie" to false
+        )
+        "SalleDeBain" -> mapOf("Lumiere" to false, "Humidite" to 60f)
+        "Bureau" -> mapOf("Lumiere" to false, "Temperature" to 21f)
+        "Garage" -> mapOf("Lumiere" to false, "Serrure Deverrouillee" to false)
+        else -> emptyMap()
+    }
 }
 fun initializeRoomsInFirebase(database: DatabaseReference) {
-    val rooms = listOf("Entrance", "Living Room", "Bedroom", "Kitchen", "Bathroom", "Office", "Garage")
-    for (room in rooms) {
-        val roomRef = database.child("rooms").child(room)
+    val firebaseRooms = firebaseRoomNameMapping.values.toList()
+    for (firebaseRoomName in firebaseRooms) {
+        val roomRef = database.child("Maison").child(firebaseRoomName)
         roomRef.get().addOnSuccessListener { snapshot ->
             if (!snapshot.exists()) {
-                roomRef.setValue(defaultRoomSettings())
-                    .addOnSuccessListener { Log.d("FirebaseInit", "Initialized $room with default settings.") }
-                    .addOnFailureListener { e -> Log.e("FirebaseInit", "Failed to initialize $room.", e) }
+                val defaultData = defaultFirebaseRoomData(firebaseRoomName)
+                if (defaultData.isNotEmpty()) {
+                    roomRef.setValue(defaultData)
+                        .addOnSuccessListener { Log.d("FirebaseInit", "Initialized $firebaseRoomName with default settings.") }
+                        .addOnFailureListener { e -> Log.e("FirebaseInit", "Failed to initialize $firebaseRoomName.", e) }
+                } else {
+                    Log.d("FirebaseInit", "No default data defined for $firebaseRoomName, skipping initialization.")
+                }
             } else {
-                Log.d("FirebaseInit", "$room already exists, skipping initialization.")
+                Log.d("FirebaseInit", "$firebaseRoomName already exists, skipping initialization.")
             }
         }.addOnFailureListener { e ->
-            Log.e("FirebaseInit", "Failed to check existence of $room.", e)
+            Log.e("FirebaseInit", "Failed to check existence of $firebaseRoomName.", e)
         }
     }
 }
@@ -503,13 +549,15 @@ fun HomeScreen(
     auth: FirebaseAuth,
     database: DatabaseReference,
     themePreferences: ThemePreferences,
+    roomPreferences: RoomPreferences
 ) {
     val currentDate = remember { SimpleDateFormat("EEEE, MMMM d", Locale.getDefault()).format(Date()) }
     val userFirstName = auth.currentUser?.displayName?.takeIf { it.isNotBlank() }?.substringBefore(" ") ?: "Iram"
-    val rooms = remember { listOf("Entrance", "Living Room", "Bedroom", "Kitchen", "Bathroom", "Office", "Garage") }
+    val rooms = remember { roomPreferences.allRoomNames }
     val coroutineScope = rememberCoroutineScope()
     var selectedRoomIndex by remember { mutableStateOf<Int?>(null) }
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { rooms.size })
+    val context = LocalContext.current
 
 
     LaunchedEffect(selectedRoomIndex) {
@@ -557,6 +605,12 @@ fun HomeScreen(
             },
             onDismissRequest = {
                 showThemeDialog = false
+            },
+            onLogoutClick = {
+                auth.signOut()
+                val intent = Intent(context, LoginActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                context.startActivity(intent)
             }
         )
     }
@@ -635,8 +689,9 @@ fun HomeScreen(
                             val roomName = rooms[pageIndex]
                             key(roomName) {
                                 RoomControls(
-                                    roomName = roomName,
-                                    database = database
+                                    appRoomName = roomName,
+                                    database = database,
+                                    roomPreferences = roomPreferences // Pass it down
                                 )
                             }
                         } else {
@@ -850,42 +905,45 @@ fun InfoRow(
     }
 }
 
-
-
 @Composable
 fun RoomControls(
-    roomName: String,
-    database: DatabaseReference
+    appRoomName: String,
+    database: DatabaseReference,
+    roomPreferences: RoomPreferences
 ) {
-    val context = LocalContext.current
-    val roomPreferences = remember { RoomPreferences(context) }
+    val firebaseRoomName = getFirebaseRoomName(appRoomName)
+    if (firebaseRoomName == null) {
+        Text("Error: Firebase mapping not found for $appRoomName")
+        return
+    }
+
+    val roomRef = remember(firebaseRoomName) { database.child("Maison").child(firebaseRoomName) }
+
     var roomSettingsState by remember { mutableStateOf(RoomSettings()) }
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
-    val roomRef = remember(roomName) { database.child("rooms").child(roomName) }
 
-    LaunchedEffect(roomName) {
-        roomPreferences.roomSettingsFlow(roomName).collectLatest { settings ->
+    LaunchedEffect(appRoomName) {
+        roomPreferences.roomSettingsFlow(appRoomName).collectLatest { settings ->
             roomSettingsState = settings
         }
     }
 
-    LaunchedEffect(roomName) {
-        roomRef.addValueEventListener(object : ValueEventListener {
+    LaunchedEffect(firebaseRoomName) {
+        val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                // Optional: If you *want* Firebase to override DataStore (not the user's requirement here),
-                // you would update roomSettingsState based on Firebase data here.
-                // Since the requirement is for DataStore to be the primary source reflecting app state,
-                // we won't update roomSettingsState from Firebase here. This listener just keeps the Firebase
-                // data updated when DataStore changes trigger a Firebase write.
+                Log.d("FirebaseListener", "$firebaseRoomName data changed: ${snapshot.value}")
             }
             override fun onCancelled(error: DatabaseError) {
-
+                Log.w("FirebaseListener", "Listen failed for $firebaseRoomName", error.toException())
             }
-        })
+        }
+        roomRef.addValueEventListener(listener)
+
     }
 
-    val imageResourceId = when (roomName) {
+
+    val imageResourceId = when (appRoomName) {
         "Entrance" -> R.drawable.ic_entrance_playstore
         "Living Room" -> R.drawable.ic_living_room_playstore
         "Bedroom" -> R.drawable.ic_bedroom_playstore
@@ -923,10 +981,11 @@ fun RoomControls(
                     checked = roomSettingsState.isLightOn,
                     onCheckedChange = { isOn ->
                         val updatedSettings = roomSettingsState.copy(isLightOn = isOn)
-                        roomSettingsState = updatedSettings // Optimistic UI update
+                        roomSettingsState = updatedSettings
                         coroutineScope.launch {
-                            roomPreferences.saveRoomSettings(roomName, updatedSettings)
-                            roomRef.child("isLightOn").setValue(isOn)
+                            roomPreferences.saveRoomSettings(appRoomName, updatedSettings)
+                            roomRef.child("Lumiere").setValue(isOn)
+                                .addOnFailureListener { e -> Log.e("FirebaseWrite", "Failed to write Lumiere for $firebaseRoomName", e) }
                         }
                     }
                 )
@@ -943,10 +1002,11 @@ fun RoomControls(
                 Divider()
             }
 
+
             Spacer(modifier = Modifier.height(24.dp))
 
 
-            when (roomName) {
+            when (appRoomName) {
                 "Entrance" -> {
                     Text("Entrance Specific", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.height(12.dp))
@@ -955,10 +1015,11 @@ fun RoomControls(
                             checked = roomSettingsState.isDoorLocked,
                             onCheckedChange = { isLocked ->
                                 val updatedSettings = roomSettingsState.copy(isDoorLocked = isLocked)
-                                roomSettingsState = updatedSettings // Optimistic UI update
+                                roomSettingsState = updatedSettings
                                 coroutineScope.launch {
-                                    roomPreferences.saveRoomSettings(roomName, updatedSettings)
-                                    roomRef.child("isDoorLocked").setValue(isLocked)
+                                    roomPreferences.saveRoomSettings(appRoomName, updatedSettings)
+                                    roomRef.child("Serrure Deverrouillee").setValue(!isLocked)
+                                        .addOnFailureListener { e -> Log.e("FirebaseWrite", "Failed to write Serrure Deverrouillee for $firebaseRoomName", e) }
                                 }
                             }
                         )
@@ -968,15 +1029,16 @@ fun RoomControls(
                 "Living Room" -> {
                     Text("Living Room Specific", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.height(12.dp))
-                    SettingsRow(Icons.Filled.AcUnit, "Climate System") {
+                    SettingsRow(Icons.Filled.AcUnit, "Climate System (AC)") {
                         Switch(
                             checked = roomSettingsState.isClimateOn,
                             onCheckedChange = { isOn ->
                                 val updatedSettings = roomSettingsState.copy(isClimateOn = isOn)
-                                roomSettingsState = updatedSettings // Optimistic UI update
+                                roomSettingsState = updatedSettings
                                 coroutineScope.launch {
-                                    roomPreferences.saveRoomSettings(roomName, updatedSettings)
-                                    roomRef.child("isClimateOn").setValue(isOn)
+                                    roomPreferences.saveRoomSettings(appRoomName, updatedSettings)
+                                    roomRef.child("Climatisation").child("Air Conditionné").setValue(isOn)
+                                        .addOnFailureListener { e -> Log.e("FirebaseWrite", "Failed to write Air Conditionné for $firebaseRoomName", e) }
                                 }
                             }
                         )
@@ -1000,10 +1062,12 @@ fun RoomControls(
                                 roomSettingsState = roomSettingsState.copy(targetTemperature = newTemp)
                             },
                             onValueChangeFinished = {
-                                val updatedSettings = roomSettingsState.copy(targetTemperature = roomSettingsState.targetTemperature)
+                                val finalTemp = roomSettingsState.targetTemperature
+                                val updatedSettings = roomSettingsState.copy(targetTemperature = finalTemp)
                                 coroutineScope.launch {
-                                    roomPreferences.saveRoomSettings(roomName, updatedSettings)
-                                    roomRef.child("targetTemperature").setValue(roomSettingsState.targetTemperature)
+                                    roomPreferences.saveRoomSettings(appRoomName, updatedSettings)
+                                    roomRef.child("Climatisation").child("Température Cible").setValue(finalTemp)
+                                        .addOnFailureListener { e -> Log.e("FirebaseWrite", "Failed to write Température Cible for $firebaseRoomName", e) }
                                 }
                             },
                             valueRange = 15f..30f,
@@ -1037,10 +1101,12 @@ fun RoomControls(
                                 roomSettingsState = roomSettingsState.copy(blindPosition = newPos.toInt())
                             },
                             onValueChangeFinished = {
-                                val updatedSettings = roomSettingsState.copy(blindPosition = roomSettingsState.blindPosition)
+                                val finalPosition = roomSettingsState.blindPosition
+                                val updatedSettings = roomSettingsState.copy(blindPosition = finalPosition)
                                 coroutineScope.launch {
-                                    roomPreferences.saveRoomSettings(roomName, updatedSettings)
-                                    roomRef.child("blindPosition").setValue(roomSettingsState.blindPosition)
+                                    roomPreferences.saveRoomSettings(appRoomName, updatedSettings)
+                                    roomRef.child("OuvertureStores").setValue(finalPosition)
+                                        .addOnFailureListener { e -> Log.e("FirebaseWrite", "Failed to write OuvertureStores for $firebaseRoomName", e) }
                                 }
                             },
                             valueRange = 0f..100f,
@@ -1065,10 +1131,10 @@ fun RoomControls(
                             checked = roomSettingsState.isNightLightAuto,
                             onCheckedChange = { isAuto ->
                                 val updatedSettings = roomSettingsState.copy(isNightLightAuto = isAuto)
-                                roomSettingsState = updatedSettings // Optimistic UI update
+                                roomSettingsState = updatedSettings
                                 coroutineScope.launch {
-                                    roomPreferences.saveRoomSettings(roomName, updatedSettings)
-                                    roomRef.child("isNightLightAuto").setValue(isAuto)
+                                    roomPreferences.saveRoomSettings(appRoomName, updatedSettings)
+
                                 }
                             }
                         )
@@ -1079,10 +1145,11 @@ fun RoomControls(
                             checked = roomSettingsState.isClapLightEnabled,
                             onCheckedChange = { isEnabled ->
                                 val updatedSettings = roomSettingsState.copy(isClapLightEnabled = isEnabled)
-                                roomSettingsState = updatedSettings // Optimistic UI update
+                                roomSettingsState = updatedSettings
                                 coroutineScope.launch {
-                                    roomPreferences.saveRoomSettings(roomName, updatedSettings)
-                                    roomRef.child("isClapLightEnabled").setValue(isEnabled)
+                                    roomPreferences.saveRoomSettings(appRoomName, updatedSettings)
+                                    roomRef.child("Systeme ClapClap").setValue(isEnabled)
+                                        .addOnFailureListener { e -> Log.e("FirebaseWrite", "Failed to write Systeme ClapClap for $firebaseRoomName", e) }
                                 }
                             }
                         )
@@ -1092,14 +1159,17 @@ fun RoomControls(
                 "Kitchen" -> {
                     Text("Kitchen Specific", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.height(12.dp))
+                    val isFireDetected = roomSettingsState.fireAlarmStatus == FireAlarmState.Detected
                     InfoRow(
-                        icon = if (roomSettingsState.fireAlarmStatus == FireAlarmState.OK) Icons.Filled.CheckCircleOutline else Icons.Filled.Warning,
+                        icon = if (!isFireDetected) Icons.Filled.CheckCircleOutline else Icons.Filled.Warning,
                         label = "Fire Alarm Status",
-                        value = roomSettingsState.fireAlarmStatus.name,
-                        valueColor = if (roomSettingsState.fireAlarmStatus == FireAlarmState.OK) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error
+                        value = if (!isFireDetected) "OK" else "DETECTED",
+                        valueColor = if (!isFireDetected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error
                     )
+
                     Divider()
                 }
+
                 else -> {
                     Text("No specific controls for this room.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -1219,7 +1289,8 @@ fun SceneButton(icon: ImageVector, label: String, onClick: () -> Unit, modifier:
 fun ThemeSelectionDialog(
     currentTheme: ThemeOption,
     onThemeSelected: (ThemeOption) -> Unit,
-    onDismissRequest: () -> Unit
+    onDismissRequest: () -> Unit,
+    onLogoutClick: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismissRequest,
@@ -1246,6 +1317,16 @@ fun ThemeSelectionDialog(
                         Text(theme.name, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
+
+
+                Spacer(Modifier.height(24.dp))
+                Button(
+                    onClick = onLogoutClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error) 
+                ) {
+                    Text("Logout", color = MaterialTheme.colorScheme.onError)
+                }
             }
         },
         confirmButton = {
@@ -1257,166 +1338,323 @@ fun ThemeSelectionDialog(
     )
 }
 
+//@Composable
+//fun StatsUsageScreen(roomPreferences: RoomPreferences) {
+//    val roomData by roomPreferences.getAllRoomSettingsFlow().collectAsState(initial = emptyMap())
+//    val scrollState = rememberScrollState()
+//
+//    Column(
+//        modifier = Modifier
+//            .fillMaxSize()
+//            .padding(16.dp)
+//            .background(MaterialTheme.colorScheme.background)
+//    ) {
+//        Text(
+//            text = "Current Room Statuses",
+//            style = MaterialTheme.typography.headlineMedium,
+//            color = MaterialTheme.colorScheme.primary,
+//            fontWeight = FontWeight.Bold,
+//            modifier = Modifier.padding(bottom = 16.dp)
+//        )
+//
+//        if (roomData.isEmpty()) {
+//            Text(
+//                text = "No data available.",
+//                style = MaterialTheme.typography.bodyLarge,
+//                color = MaterialTheme.colorScheme.onSurfaceVariant
+//            )
+//        } else {
+//            Column(modifier = Modifier.verticalScroll(scrollState)) {
+//                roomData.forEach { (roomName, settings) ->
+//                    var hasActiveStatus = false
+//
+//                    if (settings.isLightOn ||
+//                        (!settings.isDoorLocked && (roomName == "Entrance" || roomName == "Garage")) ||
+//                        (settings.isClimateOn && roomName == "Living Room") ||
+//                        (settings.isNightLightAuto && roomName == "Bedroom") ||
+//                        (settings.isClapLightEnabled && roomName == "Bedroom") ||
+//                        (settings.fireAlarmStatus == FireAlarmState.Detected && roomName == "Kitchen") ||
+//                        settings.deviceNames.isNotEmpty()
+//                    ) {
+//                        hasActiveStatus = true
+//                    }
+//
+//                    if (hasActiveStatus) {
+//                        Card(
+//                            modifier = Modifier
+//                                .fillMaxWidth()
+//                                .padding(vertical = 8.dp),
+//                            colors = CardDefaults.cardColors(
+//                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+//                            ),
+//                            elevation = CardDefaults.cardElevation(8.dp)
+//                        ) {
+//                            Column(modifier = Modifier.padding(16.dp)) {
+//                                Text(
+//                                    text = roomName,
+//                                    style = MaterialTheme.typography.titleMedium,
+//                                    color = MaterialTheme.colorScheme.onSurface,
+//                                    fontWeight = FontWeight.Bold
+//                                )
+//                                Spacer(modifier = Modifier.height(8.dp))
+//
+//                                if (settings.isLightOn) {
+//                                    StatusItem(icon = Icons.Filled.Lightbulb, text = "Lights are ON")
+//                                }
+//
+//                                if (roomName == "Entrance" || roomName == "Garage") {
+//                                    if (!settings.isDoorLocked) {
+//                                        StatusItem(
+//                                            icon = Icons.Filled.LockOpen,
+//                                            text = "Door is UNLOCKED",
+//                                            isWarning = true
+//                                        )
+//                                    } else {
+//                                        StatusItem(
+//                                            icon = Icons.Filled.Lock,
+//                                            text = "Door is LOCKED",
+//                                            isPositive = true
+//                                        )
+//                                    }
+//                                }
+//
+//                                if (settings.isClimateOn && roomName == "Living Room") {
+//                                    StatusItem(icon = Icons.Filled.AcUnit, text = "Climate (AC) is ON", isPositive = true)
+//                                }
+//
+//                                if (settings.fireAlarmStatus == FireAlarmState.Detected && roomName == "Kitchen") {
+//                                    StatusItem(
+//                                        icon = Icons.Filled.Warning,
+//                                        text = "Fire Alarm DETECTED!",
+//                                        isWarning = true
+//                                    )
+//                                }
+//
+//                                when (roomName) {
+//                                    "Bedroom" -> {
+//                                        if (settings.isNightLightAuto) {
+//                                            StatusItem(icon = Icons.Filled.AutoMode, text = "Night light is AUTO", isPositive = true)
+//                                        }
+//                                        if (settings.isClapLightEnabled) {
+//                                            StatusItem(icon = Icons.Filled.Mic, text = "Clap light is ENABLED", isPositive = true)
+//                                        }
+//                                    }
+//                                }
+//
+//
+//                                if (settings.deviceNames.isNotEmpty()) {
+//                                    Text(
+//                                        text = "Devices:",
+//                                        style = MaterialTheme.typography.bodyMedium,
+//                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+//                                        modifier = Modifier.padding(top = 8.dp)
+//                                    )
+//                                    settings.deviceNames.forEach { deviceName ->
+//                                        StatusItem(
+//                                            icon = Icons.Filled.DeviceHub,
+//                                            text = deviceName
+//                                        )
+//                                    }
+//                                }
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//    }
+//}
 
 @Composable
 fun StatsUsageScreen(roomPreferences: RoomPreferences) {
-    val allRoomSettings by roomPreferences.getAllRoomSettingsFlow().collectAsState(initial = emptyMap())
+    val roomData by roomPreferences.getAllRoomSettingsFlow().collectAsState(initial = emptyMap())
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Text(
-            "Current Status",
+            text = "Current Room Statuses",
             style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onBackground,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        if (allRoomSettings.isEmpty()) {
-            StatusItem(icon = Icons.Filled.Info, text = "No room information available.")
+        if (roomData.isEmpty()) {
+            Text(
+                text = "No data available.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         } else {
             Column(modifier = Modifier.verticalScroll(scrollState)) {
-                var activeStatusFoundOverall = false // To check if ANY status is shown
+                roomData.forEach { (roomName, settings) ->
+                    var hasActiveStatus = false
 
-                allRoomSettings.forEach { (roomName, settings) ->
-                    var roomHasActiveStatus = false // To check if this specific room has status to show
-
-                    // Determine if this room has any status we care about displaying
                     if (settings.isLightOn ||
-                        (roomName in listOf("Entrance", "Garage") && (!settings.isDoorLocked || settings.isDoorLocked)) || // Include both locked/unlocked for Entrance/Garage
-                        settings.isClimateOn ||
-                        settings.isNightLightAuto ||
-                        settings.isClapLightEnabled ||
-                        settings.fireAlarmStatus != FireAlarmState.OK
+                        (!settings.isDoorLocked && (roomName == "Entrance" || roomName == "Garage")) ||
+                        (settings.isClimateOn && roomName == "Living Room") ||
+                        (settings.isNightLightAuto && roomName == "Bedroom") ||
+                        (settings.isClapLightEnabled && roomName == "Bedroom") ||
+                        (settings.fireAlarmStatus == FireAlarmState.Detected && roomName == "Kitchen") ||
+                        settings.deviceNames.isNotEmpty()
                     ) {
-                        roomHasActiveStatus = true
+                        hasActiveStatus = true
                     }
 
-                    // Display room header only if there's something to show for this room
-                    if (roomHasActiveStatus) {
-                        Text(
-                            roomName,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
+                    if (hasActiveStatus) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            ),
+                            elevation = CardDefaults.cardElevation(8.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    text = roomName,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
 
-                        // Display Lights status if ON
-                        if (settings.isLightOn) {
-                            StatusItem(icon = Icons.Filled.Lightbulb, text = "$roomName light is ON")
-                            activeStatusFoundOverall = true
-                        }
-
-                        // Display Door Lock status ONLY for Entrance and Garage
-                        if (roomName == "Entrance" || roomName == "Garage") {
-                            if (!settings.isDoorLocked) { // Display if unlocked
-                                StatusItem(icon = Icons.Filled.LockOpen, text = "$roomName door is UNLOCKED", isWarning = true)
-                                activeStatusFoundOverall = true
-                            } else { // Display if locked
-                                StatusItem(icon = Icons.Filled.Lock, text = "$roomName door is LOCKED", isPositive = true)
-                                activeStatusFoundOverall = true
-                            }
-                        }
-
-                        // Display Climate status if ON (assuming climate applies to rooms other than just Living Room if present in settings)
-                        if (settings.isClimateOn) {
-                            StatusItem(icon = Icons.Filled.AcUnit, text = "$roomName climate is ON", isPositive = true)
-                            activeStatusFoundOverall = true
-                        }
-
-                        // Display Fire Alarm status if NOT OK (assuming only Kitchen has this based on previous context, but check for any room)
-                        if (settings.fireAlarmStatus != FireAlarmState.OK) {
-                            StatusItem(icon = Icons.Filled.Warning, text = "$roomName fire alarm: ${settings.fireAlarmStatus.name}", isWarning = true)
-                            activeStatusFoundOverall = true
-                        }
-
-                        // Room specific statuses (keep these if they were intended)
-                        when (roomName) {
-                            "Bedroom" -> {
-                                if (settings.isNightLightAuto) {
-                                    StatusItem(icon = Icons.Filled.AutoMode, text = "Bedroom night light is AUTO", isPositive = true)
-                                    activeStatusFoundOverall = true
+                                if (settings.isLightOn) {
+                                    StatusItem(icon = Icons.Filled.Lightbulb, text = "Lights are ON")
                                 }
-                                if (settings.isClapLightEnabled) {
-                                    StatusItem(icon = Icons.Filled.Mic, text = "Bedroom clap light is ENABLED", isPositive = true)
-                                    activeStatusFoundOverall = true
+
+                                if (roomName == "Entrance" || roomName == "Garage") {
+                                    if (!settings.isDoorLocked) {
+                                        StatusItem(
+                                            icon = Icons.Filled.LockOpen,
+                                            text = "Door is UNLOCKED",
+                                            isWarning = true
+                                        )
+                                    } else {
+                                        StatusItem(
+                                            icon = Icons.Filled.Lock,
+                                            text = "Door is LOCKED",
+                                            isPositive = true
+                                        )
+                                    }
+                                }
+
+                                if (settings.isClimateOn && roomName == "Living Room") {
+                                    StatusItem(icon = Icons.Filled.AcUnit, text = "Climate (AC) is ON", isPositive = true)
+                                }
+
+                                if (settings.fireAlarmStatus == FireAlarmState.Detected && roomName == "Kitchen") {
+                                    StatusItem(
+                                        icon = Icons.Filled.Warning,
+                                        text = "Fire Alarm DETECTED!",
+                                        isWarning = true
+                                    )
+                                }
+
+                                when (roomName) {
+                                    "Bedroom" -> {
+                                        if (settings.isNightLightAuto) {
+                                            StatusItem(icon = Icons.Filled.AutoMode, text = "Night light is AUTO", isPositive = true)
+                                        }
+                                        if (settings.isClapLightEnabled) {
+                                            StatusItem(icon = Icons.Filled.Mic, text = "Clap light is ENABLED", isPositive = true)
+                                        }
+                                    }
+                                }
+
+
+                                if (settings.deviceNames.isNotEmpty()) {
+                                    Text(
+                                        text = "Devices:",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(top = 8.dp)
+                                    )
+                                    settings.deviceNames.forEach { deviceName ->
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            StatusItem(
+                                                icon = Icons.Filled.DeviceHub,
+                                                text = deviceName,
+                                                modifier = Modifier.weight(1f).padding(end = 8.dp)
+                                            )
+                                            IconButton(onClick = {
+                                                coroutineScope.launch {
+                                                    deleteDevice(context, roomName, deviceName)
+                                                }
+                                            }) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.Delete,
+                                                    contentDescription = "Delete Device",
+                                                    tint = MaterialTheme.colorScheme.error
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
-                            // Add other room specific statuses here if needed from the original code
                         }
-                        if (settings.deviceNames.isNotEmpty()) {
-                            Text(
-                                "Added Devices:",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                            )
-                            settings.deviceNames.forEach { deviceName ->
-                                StatusItem(icon = Icons.Filled.DeviceHub, text = deviceName)
-                                activeStatusFoundOverall = true
-                            }
-                        }
-
-                        // Add a divider after each room's statuses if that room had any active status displayed
-                        Divider(modifier = Modifier.padding(top = 8.dp))
                     }
-                }
-
-                // Display a message if no active statuses were found across all rooms
-                if (!activeStatusFoundOverall) {
-                    StatusItem(icon = Icons.Filled.CheckCircleOutline, text = "No active devices or features detected across all rooms.", isPositive = true)
                 }
             }
         }
     }
 }
-
-
 @Composable
-fun StatusItem(icon: ImageVector, text: String, isWarning: Boolean = false, isPositive: Boolean = false) {
+fun StatusItem(icon: ImageVector, text: String, isWarning: Boolean = false, isPositive: Boolean = false, modifier: Modifier = Modifier) {
+    val iconColor = when {
+        isWarning -> MaterialTheme.colorScheme.error
+        isPositive -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val textColor = when {
+        isWarning -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+
     Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(vertical = 4.dp)
+        modifier = modifier.padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = when {
-                isWarning -> MaterialTheme.colorScheme.error
-                isPositive -> MaterialTheme.colorScheme.primary
-                else -> MaterialTheme.colorScheme.onSurfaceVariant
-            },
+            tint = iconColor,
             modifier = Modifier.size(20.dp)
         )
-        Spacer(Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(12.dp))
         Text(
             text = text,
             style = MaterialTheme.typography.bodyLarge,
-            color = when {
-                isWarning -> MaterialTheme.colorScheme.error
-                else -> MaterialTheme.colorScheme.onSurface
-            }
+            color = textColor
         )
     }
 }
 
-@Composable
-fun AddDeviceScreen(navController: NavHostController) {
-    val context = LocalContext.current
-    val roomPreferences = remember { RoomPreferences(context) }
-    val coroutineScope = rememberCoroutineScope()
-    val database = Firebase.database.reference
 
+@Composable
+fun AddDeviceScreen(
+    navController: NavHostController,
+    database: DatabaseReference,
+    roomPreferences: RoomPreferences // Added roomPreferences parameter
+) {
     val rooms = remember { roomPreferences.allRoomNames }
-    var selectedRoom by remember { mutableStateOf<String?>(null) }
+    var selectedAppRoom by remember { mutableStateOf<String?>(null) }
     var deviceName by remember { mutableStateOf("") }
     var deviceType by remember { mutableStateOf("") }
+    val coroutineScope = rememberCoroutineScope()
+
 
 
     Column(
@@ -1441,19 +1679,21 @@ fun AddDeviceScreen(navController: NavHostController) {
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(rooms) { room ->
+                val chipColors: SelectableChipColors = FilterChipDefaults.filterChipColors() // Define type if needed
                 FilterChip(
-                    selected = room == selectedRoom,
-                    onClick = { selectedRoom = if (selectedRoom == room) null else room },
+                    selected = room == selectedAppRoom,
+                    onClick = { selectedAppRoom = if (selectedAppRoom == room) null else room },
                     label = { Text(room) },
-                    leadingIcon = if (room == selectedRoom) {
+                    leadingIcon = if (room == selectedAppRoom) {
                         {
                             Icon(
                                 imageVector = Icons.Filled.Check,
                                 contentDescription = "Selected",
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(FilterChipDefaults.IconSize) // Use default size or 18.dp
                             )
                         }
-                    } else null
+                    } else null,
+                    colors = chipColors // Pass defined colors
                 )
             }
         }
@@ -1481,41 +1721,85 @@ fun AddDeviceScreen(navController: NavHostController) {
 
         Button(
             onClick = {
-                if (selectedRoom != null && deviceName.isNotBlank()) {
+                val appRoom = selectedAppRoom
+                val fbRoom = appRoom?.let { getFirebaseRoomName(it) }
+                if (appRoom != null && fbRoom != null && deviceName.isNotBlank()) {
                     coroutineScope.launch {
-                        val currentSettings = roomPreferences.roomSettingsFlow(selectedRoom!!).first()
-                        val updatedDeviceNames = currentSettings.deviceNames.toMutableList()
+                        val currentSettings: RoomSettings = roomPreferences.roomSettingsFlow(appRoom).first() // Define type
+                        val updatedDeviceNames: MutableList<String> = currentSettings.deviceNames.toMutableList() // Define type
                         updatedDeviceNames.add(deviceName)
-
                         val updatedSettings = currentSettings.copy(deviceNames = updatedDeviceNames)
-
-                        roomPreferences.saveRoomSettings(selectedRoom!!, updatedSettings)
-
-                        val roomRef = database.child("rooms").child(selectedRoom!!)
-                        roomRef.child("deviceNames").setValue(updatedDeviceNames)
+                        roomPreferences.saveRoomSettings(appRoom, updatedSettings)
 
 
-                        navController.popBackStack()
+                        val devicesRef = database.child("Maison").child(fbRoom).child("devices")
+                        devicesRef.setValue(updatedDeviceNames)
+                            .addOnSuccessListener {
+                                Log.d("FirebaseWrite", "Device list updated for $fbRoom")
+                                navController.popBackStack()
+                            }
+                            .addOnFailureListener { e->
+                                Log.e("FirebaseWrite", "Failed to update device list for $fbRoom", e)
 
+                                navController.popBackStack()
+                            }
                     }
                 } else {
-
+                    Log.w("AddDevice", "Room not selected or mapped, or device name is blank.")
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            enabled = selectedRoom != null && deviceName.isNotBlank(),
+            enabled = selectedAppRoom != null && deviceName.isNotBlank(),
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
         ) {
             Text("Add Device", color = MaterialTheme.colorScheme.onPrimary)
         }
         Spacer(Modifier.height(16.dp))
-        
+
         TextButton(
             onClick = { navController.popBackStack() },
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
         ) {
             Text("Cancel")
+        }
+    }
+}
+
+
+suspend fun deleteDevice(context: Context, roomName: String, deviceName: String) {
+    val roomPreferences = RoomPreferences(context)
+    val database = Firebase.database.reference
+
+    val currentSettings = roomPreferences.roomSettingsFlow(roomName).first()
+    val updatedDeviceNames = currentSettings.deviceNames.toMutableList()
+    if (updatedDeviceNames.remove(deviceName)) {
+        val updatedSettings = currentSettings.copy(deviceNames = updatedDeviceNames)
+        roomPreferences.saveRoomSettings(roomName, updatedSettings)
+    }
+
+    val firebaseRoomName = getFirebaseRoomName(roomName)
+    if (firebaseRoomName != null) {
+        val devicesRef = database.child("Maison").child(firebaseRoomName).child("devices")
+
+        try {
+            val snapshot = devicesRef.get().await()
+            val rawValue = snapshot.value
+            val firebaseDeviceList = if (rawValue is List<*>) {
+                rawValue.filterIsInstance<String>().toMutableList()
+            } else {
+                mutableListOf()
+            }
+
+            if (firebaseDeviceList.remove(deviceName)) {
+                if (firebaseDeviceList.isEmpty()) {
+                    devicesRef.removeValue().await()
+                } else {
+                    devicesRef.setValue(firebaseDeviceList).await()
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("DeleteDevice", "Error deleting device from Firebase", e)
         }
     }
 }
